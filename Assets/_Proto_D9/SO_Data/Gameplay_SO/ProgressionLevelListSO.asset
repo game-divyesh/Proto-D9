@@ -14,3 +14,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::MatchingPair.Gameplay.Levels.ProgressionLevelListSO
   Levels:
   - {fileID: 11400000, guid: 7afaff062d2ae6b488ed6580c0bff5b8, type: 2}
+  - {fileID: 11400000, guid: ffc3d8173c0c1164e91f7567f052ce8b, type: 2}
+  - {fileID: 11400000, guid: b0277a11f79160241a6213de94f0c304, type: 2}
+  - {fileID: 11400000, guid: ca16cbf2ba53d704b889856cabf07201, type: 2}
+  - {fileID: 11400000, guid: 7f9c6b39531cfc94fbd862c78578112a, type: 2}
+  - {fileID: 11400000, guid: dd23ec6a52c009b4f982ab6ef1f78998, type: 2}
+  - {fileID: 11400000, guid: 230069e8e6c955549a45f1cb348c034b, type: 2}
+  - {fileID: 11400000, guid: 4583e8278238f4f49b821d237658fcc9, type: 2}
+  - {fileID: 11400000, guid: 41c05415abd858d4fa2daea7b4f242cb, type: 2}
+  - {fileID: 11400000, guid: b652a3a76d46653498e33b8440892d1f, type: 2}
