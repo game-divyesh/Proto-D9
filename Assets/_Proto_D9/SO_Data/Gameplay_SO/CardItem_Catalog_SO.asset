@@ -40,7 +40,7 @@ MonoBehaviour:
     iconSprite: {fileID: 21300000, guid: 4ee494326ed95024fbbf9ae933a63b2a, type: 3}
   - Name: Star
     Type: 8
-    iconSprite: {fileID: 21300000, guid: 6bfacdaeecf476444bce6acf19dcb608, type: 3}
+    iconSprite: {fileID: 21300000, guid: 7b8b75d24dac3434bbd0d38094e0cf9d, type: 3}
   - Name: Heart
     Type: 9
     iconSprite: {fileID: 21300000, guid: de9137279fa852449a9134d475f62499, type: 3}

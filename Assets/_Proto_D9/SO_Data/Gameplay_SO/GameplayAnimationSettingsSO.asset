@@ -1,0 +1,23 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 43a8dc31c56aabb4393d7c2c62dce66c, type: 3}
+  m_Name: GameplayAnimationSettingsSO
+  m_EditorClassIdentifier: Assembly-CSharp::MatchingPair.Gameplay.Levels.GameplayAnimationSettingsSO
+  MatchAnimationDelay: 0.05
+  MatchScaleUpDuration: 0.12
+  MatchScaleOutDuration: 0.18
+  MatchScaleUpMultiplier: 1.5
+  MismatchNudgeDuration: 0.35
+  MismatchNudgeScaleStrength: 0.1
+  MismatchNudgeRotationDegrees: 30
+  MismatchNudgeFrequency: 6
+  MismatchFlipDelay: 0.1

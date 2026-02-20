@@ -17,29 +17,7 @@ namespace MatchingPair.Gameplay.GridSystem
             baseCellSize.x = Mathf.Max(MinCellAxisSize, baseCellSize.x);
             baseCellSize.y = Mathf.Max(MinCellAxisSize, baseCellSize.y);
             baseCellSize.z = Mathf.Max(MinCellAxisSize, baseCellSize.z);
-
-            if (!settings.AutoFitToArea)
-            {
-                return baseCellSize;
-            }
-
-            float spacing = Mathf.Max(0f, settings.Spacing);
-            float targetWidth = Mathf.Max(0f, settings.TargetWorldSize.x);
-            float targetHeight = Mathf.Max(0f, settings.TargetWorldSize.y);
-            float width = Mathf.Max(1, settings.Width);
-            float height = Mathf.Max(1, settings.Height);
-
-            float cellSizeFromWidth = (targetWidth - (width - 1f) * spacing) / width;
-            float cellSizeFromHeight = (targetHeight - (height - 1f) * spacing) / height;
-            float fittedWidthAxis = Mathf.Max(MinCellAxisSize, cellSizeFromWidth);
-            float fittedHeightAxis = Mathf.Max(MinCellAxisSize, cellSizeFromHeight);
-
-            if (settings.Plane == GridPlane.XZ)
-            {
-                return new Vector3(fittedWidthAxis, baseCellSize.y, fittedHeightAxis);
-            }
-
-            return new Vector3(fittedWidthAxis, fittedHeightAxis, baseCellSize.z);
+            return baseCellSize;
         }
 
         public static Vector2 GetCellStep(GridSettings settings)
