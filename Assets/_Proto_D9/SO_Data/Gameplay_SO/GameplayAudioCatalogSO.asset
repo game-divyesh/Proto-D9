@@ -1,0 +1,23 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c01e3566baab45a0aabf5d3bfac3f0c3, type: 3}
+  m_Name: GameplayAudioCatalogSO
+  m_EditorClassIdentifier: Assembly-CSharp:MatchingPair.Gameplay:GameplayAudioCatalogSO
+  entries:
+  - Type: 0
+    Clip: {fileID: 8300000, guid: 12201e7764fc27640ac2899c4f22420a, type: 3}
+  - Type: 1
+    Clip: {fileID: 8300000, guid: 12201e7764fc27640ac2899c4f22420a, type: 3}
+  - Type: 2
+    Clip: {fileID: 8300000, guid: 8366af07ad18f74418fe3a98016caf6c, type: 3}
+  - Type: 3
+    Clip: {fileID: 8300000, guid: 5016cc519bb109a498b259ac9c40cbe3, type: 3}

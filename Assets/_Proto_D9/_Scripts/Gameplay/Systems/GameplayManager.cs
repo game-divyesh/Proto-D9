@@ -26,6 +26,7 @@ namespace MatchingPair.Gameplay
         [SerializeField] private ScoreComboSettingsSO scoreComboSettings;
         [SerializeField] private FloatingTextFeedbackSettingsSO floatingTextFeedbackSettings;
         [SerializeField] private FloatingTextManager floatingTextManager;
+        [SerializeField] private Audio_Manager gameplayAudioPlayer;
         [SerializeField] private bool autoBuildLevelOnStart = false;
 
         [Header("Input")]
@@ -79,6 +80,11 @@ namespace MatchingPair.Gameplay
             if (gameplayCamera == null)
             {
                 gameplayCamera = Camera.main;
+            }
+
+            if (gameplayAudioPlayer == null)
+            {
+                gameplayAudioPlayer = FindFirstObjectByType<Audio_Manager>();
             }
         }
 
@@ -467,6 +473,10 @@ namespace MatchingPair.Gameplay
         private void SelectCard(CardController selectedCard)
         {
             openAttemptCount++;
+            if (gameplayAudioPlayer != null)
+            {
+                gameplayAudioPlayer.PlayCardShowAudio();
+            }
             selectedCard.ShowCard();
 
             if (firstSelectedCard == null)
@@ -541,11 +551,19 @@ namespace MatchingPair.Gameplay
 
                 if (firstCard != null)
                 {
+                    if (gameplayAudioPlayer != null)
+                    {
+                        gameplayAudioPlayer.PlayCardHideAudio();
+                    }
                     firstCard.HideCard();
                 }
 
                 if (secondCard != null)
                 {
+                    if (gameplayAudioPlayer != null)
+                    {
+                        gameplayAudioPlayer.PlayCardHideAudio();
+                    }
                     secondCard.HideCard();
                 }
 
@@ -768,6 +786,10 @@ namespace MatchingPair.Gameplay
             }
 
             SetGameState(GameState.Won);
+            if (gameplayAudioPlayer != null)
+            {
+                gameplayAudioPlayer.PlayLevelCompleteAudio();
+            }
             OnGameWon?.Invoke();
             OnStarsCalculated?.Invoke(stars);
 
@@ -793,6 +815,10 @@ namespace MatchingPair.Gameplay
             }
 
             SetGameState(GameState.Lost);
+            if (gameplayAudioPlayer != null)
+            {
+                gameplayAudioPlayer.PlayLevelFailedAudio();
+            }
             NotifyLevelTimerChanged();
             OnGameLost?.Invoke();
         }
