@@ -108,6 +108,13 @@ namespace MatchingPair.Gameplay.Card
         {
             isMatched = false;
         }
+
+        public void SetCardFaceInstant(bool showFront)
+        {
+            StopFlipAnimation();
+            SetRotationY(showFront ? 180f : 0f);
+            SetFaceVisual(showFront);
+        }
         #endregion
 
         #region InternalMethods
@@ -115,9 +122,7 @@ namespace MatchingPair.Gameplay.Card
         {
             isInPool = false;
             isMatched = false;
-            StopFlipAnimation();
-            transform.localEulerAngles = Vector3.zero;
-            SetFaceVisual(false);
+            SetCardFaceInstant(false);
             transform.localScale = Vector3.one;
         }
 
@@ -125,9 +130,7 @@ namespace MatchingPair.Gameplay.Card
         {
             isInPool = true;
             isMatched = false;
-            StopFlipAnimation();
-            transform.localEulerAngles = Vector3.zero;
-            SetFaceVisual(false);
+            SetCardFaceInstant(false);
             transform.localScale = Vector3.one;
         }
         #endregion

@@ -26,6 +26,7 @@ namespace MatchingPair.Gameplay
         [SerializeField] private ScoreComboSettingsSO scoreComboSettings;
         [SerializeField] private FloatingTextFeedbackSettingsSO floatingTextFeedbackSettings;
         [SerializeField] private FloatingTextManager floatingTextManager;
+        [SerializeField] private bool autoBuildLevelOnStart = false;
 
         [Header("Input")]
         [SerializeField, Min(0f)] private float selectionCastRadius = 0.05f;
@@ -35,6 +36,7 @@ namespace MatchingPair.Gameplay
         [Header("Animation")]
         [SerializeField] private GameplayAnimationSettingsSO animationSettings;
         [SerializeField, Min(0f)] private float levelStartRevealSeconds = 3f;
+        [SerializeField, Min(0f)] private float gameCompleteDelaySeconds = 1f;
 
         private LevelContext currentLevelContext;
         private CardController firstSelectedCard;
@@ -42,9 +44,11 @@ namespace MatchingPair.Gameplay
         private bool isResolvingSelection;
         private bool hasInitializedFreeTimer;
         private float remainingTimeSeconds;
+        private float levelTimerMaxSeconds;
         private int openAttemptCount;
         private GameState currentGameState;
         private Coroutine levelStartPreviewCoroutine;
+        private Coroutine pendingGameWonCoroutine;
         private readonly RaycastHit[] selectionHitBuffer = new RaycastHit[24];
         private readonly ScoreComboTracker scoreComboTracker = new ScoreComboTracker();
         #endregion
@@ -56,11 +60,14 @@ namespace MatchingPair.Gameplay
         public event Action<GameState> OnGameStateChanged;
         public event Action<int> OnScoreChanged;
         public event Action<int, float> OnComboChanged;
+        public event Action<float, float> OnLevelTimerChanged;
         #endregion
 
         #region Properties
         public GameState CurrentState => currentGameState;
         public float RemainingTimeSeconds => remainingTimeSeconds;
+        public float LevelTimerMaxSeconds => levelTimerMaxSeconds;
+        public bool HasLevelTimer => levelTimerMaxSeconds > 0f;
         public int OpenAttemptCount => openAttemptCount;
         public int CurrentScore => scoreComboTracker.CurrentScore;
         public int CurrentComboCount => scoreComboTracker.CurrentComboCount;
@@ -87,13 +94,13 @@ namespace MatchingPair.Gameplay
                 return;
             }
 
-            if (levelManager.CurrentLevelContext == null)
+            if (autoBuildLevelOnStart && levelManager.CurrentLevelContext == null)
             {
                 levelManager.BuildCurrentModeLevel();
                 return;
             }
 
-            if (currentLevelContext == null)
+            if (currentLevelContext == null && levelManager.CurrentLevelContext != null)
             {
                 HandleLevelBuilt(levelManager.CurrentLevelContext);
             }
@@ -102,6 +109,7 @@ namespace MatchingPair.Gameplay
         private void OnDisable()
         {
             StopLevelStartPreview();
+            StopPendingGameWonRoutine();
             UnsubscribeFromLevelManagerEvents();
         }
 
@@ -121,18 +129,43 @@ namespace MatchingPair.Gameplay
         #region PublicAPI
         public void StartGame(GameMode mode)
         {
+            StopPendingGameWonRoutine();
             hasInitializedFreeTimer = false;
             firstSelectedCard = null;
             secondSelectedCard = null;
             isResolvingSelection = false;
             openAttemptCount = 0;
+            remainingTimeSeconds = 0f;
+            levelTimerMaxSeconds = 0f;
             scoreComboTracker.Reset(scoreComboSettings);
             NotifyScoreComboChanged();
+            NotifyLevelTimerChanged();
 
             if (levelManager != null)
             {
                 levelManager.BuildLevel(mode);
             }
+        }
+
+        public void ContinueAfterWin()
+        {
+            if (levelManager == null || currentLevelContext == null)
+            {
+                return;
+            }
+
+            if (currentGameState != GameState.Won)
+            {
+                return;
+            }
+
+            if (currentLevelContext.Mode == GameMode.Progression)
+            {
+                levelManager.BuildNextProgressionLevel();
+                return;
+            }
+
+            levelManager.BuildLevel(GameMode.FreeToPlay);
         }
         #endregion
 
@@ -226,15 +259,28 @@ namespace MatchingPair.Gameplay
 
         private void UpdateTimerForCurrentMode()
         {
-            if (currentLevelContext == null || currentLevelContext.Mode != GameMode.FreeToPlay)
+            if (currentLevelContext == null)
+            {
+                return;
+            }
+
+            bool hasTimedProgression = currentLevelContext.Mode == GameMode.Progression && levelTimerMaxSeconds > 0f;
+            if (currentLevelContext.Mode != GameMode.FreeToPlay && !hasTimedProgression)
             {
                 return;
             }
 
             remainingTimeSeconds -= Time.deltaTime;
+            if (remainingTimeSeconds > 0f)
+            {
+                NotifyLevelTimerChanged();
+                return;
+            }
+
             if (remainingTimeSeconds <= 0f)
             {
                 remainingTimeSeconds = 0f;
+                NotifyLevelTimerChanged();
                 HandleGameLost();
             }
         }
@@ -265,6 +311,12 @@ namespace MatchingPair.Gameplay
 
         private void HandleLevelBuilt(LevelContext context)
         {
+            if (context == null)
+            {
+                Debug.LogWarning("GameplayManager received null LevelContext. Level build was skipped.");
+                return;
+            }
+
             bool hasPreviousContext = currentLevelContext != null;
             bool modeChanged = hasPreviousContext && currentLevelContext.Mode != context.Mode;
             if (modeChanged)
@@ -282,17 +334,20 @@ namespace MatchingPair.Gameplay
 
             if (context.Mode == GameMode.FreeToPlay)
             {
+                levelTimerMaxSeconds = Mathf.Max(0f, context.StartTimeSeconds);
                 if (!hasInitializedFreeTimer)
                 {
-                    remainingTimeSeconds = context.StartTimeSeconds;
+                    remainingTimeSeconds = levelTimerMaxSeconds;
                     hasInitializedFreeTimer = true;
                 }
             }
             else
             {
                 hasInitializedFreeTimer = false;
-                remainingTimeSeconds = 0f;
+                levelTimerMaxSeconds = Mathf.Max(0f, context.StartTimeSeconds);
+                remainingTimeSeconds = levelTimerMaxSeconds;
             }
+            NotifyLevelTimerChanged();
 
             StopLevelStartPreview();
             levelStartPreviewCoroutine = StartCoroutine(PlayLevelStartPreview());
@@ -305,7 +360,9 @@ namespace MatchingPair.Gameplay
                 return;
             }
 
-            HandleGameWon();
+            SetGameState(GameState.None);
+            StopPendingGameWonRoutine();
+            pendingGameWonCoroutine = StartCoroutine(HandleGameWonAfterDelay());
         }
         #endregion
 
@@ -575,6 +632,11 @@ namespace MatchingPair.Gameplay
                 scoreComboTracker.GetRemainingComboTime(Time.time));
         }
 
+        private void NotifyLevelTimerChanged()
+        {
+            OnLevelTimerChanged?.Invoke(remainingTimeSeconds, levelTimerMaxSeconds);
+        }
+
         private void ShowMatchFloatingText(ScoreComboResult result, CardController firstCard, CardController secondCard)
         {
             if (floatingTextManager == null)
@@ -690,6 +752,7 @@ namespace MatchingPair.Gameplay
         #region GameState
         private void HandleGameWon()
         {
+            StopPendingGameWonRoutine();
             StopLevelStartPreview();
 
             int stars = 1;
@@ -701,6 +764,7 @@ namespace MatchingPair.Gameplay
             if (currentLevelContext != null && currentLevelContext.Mode == GameMode.FreeToPlay)
             {
                 remainingTimeSeconds += currentLevelContext.ClearRewardSeconds;
+                NotifyLevelTimerChanged();
             }
 
             SetGameState(GameState.Won);
@@ -715,15 +779,12 @@ namespace MatchingPair.Gameplay
             if (currentLevelContext.Mode == GameMode.Progression)
             {
                 levelManager.UnlockNextProgressionLevel();
-                levelManager.BuildNextProgressionLevel();
-                return;
             }
-
-            levelManager.BuildLevel(GameMode.FreeToPlay);
         }
 
         private void HandleGameLost()
         {
+            StopPendingGameWonRoutine();
             StopLevelStartPreview();
 
             if (currentGameState == GameState.Lost)
@@ -732,6 +793,7 @@ namespace MatchingPair.Gameplay
             }
 
             SetGameState(GameState.Lost);
+            NotifyLevelTimerChanged();
             OnGameLost?.Invoke();
         }
 
@@ -745,6 +807,28 @@ namespace MatchingPair.Gameplay
             currentGameState = newState;
             OnGameStateChanged?.Invoke(currentGameState);
         }
+
+        private IEnumerator HandleGameWonAfterDelay()
+        {
+            if (gameCompleteDelaySeconds > 0f)
+            {
+                yield return WaitForDelay(gameCompleteDelaySeconds);
+            }
+
+            pendingGameWonCoroutine = null;
+            HandleGameWon();
+        }
+
+        private void StopPendingGameWonRoutine()
+        {
+            if (pendingGameWonCoroutine == null)
+            {
+                return;
+            }
+
+            StopCoroutine(pendingGameWonCoroutine);
+            pendingGameWonCoroutine = null;
+        }
         #endregion
 
         #region LevelStartPreview
@@ -752,7 +836,7 @@ namespace MatchingPair.Gameplay
         {
             if (levelStartRevealSeconds <= 0f)
             {
-                HideAllCards();
+                SetAllCardsHiddenInstant();
                 SetAllCardsSelectionEnabled(true);
                 SetGameState(GameState.Playing);
                 levelStartPreviewCoroutine = null;
@@ -761,6 +845,8 @@ namespace MatchingPair.Gameplay
 
             SetGameState(GameState.None);
             SetAllCardsSelectionEnabled(false);
+            SetAllCardsHiddenInstant();
+            yield return null;
             ShowAllCards();
 
             float revealFlipDuration = GetMaxCardFlipDuration();
@@ -833,6 +919,27 @@ namespace MatchingPair.Gameplay
                 }
 
                 card.HideCard();
+            }
+        }
+
+        private void SetAllCardsHiddenInstant()
+        {
+            if (levelManager == null)
+            {
+                return;
+            }
+
+            System.Collections.Generic.IReadOnlyList<CardController> cards = levelManager.SpawnedCards;
+            int cardCount = cards.Count;
+            for (int index = 0; index < cardCount; index++)
+            {
+                CardController card = cards[index];
+                if (card == null)
+                {
+                    continue;
+                }
+
+                card.SetCardFaceInstant(false);
             }
         }
 

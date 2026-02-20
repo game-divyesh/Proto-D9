@@ -16,9 +16,7 @@ namespace MatchingPair.Gameplay
         #region Fields
         [Header("Mode")]
         [SerializeField] private GameMode startingMode = GameMode.FreeToPlay;
-        [SerializeField] private bool loadLastModeFromPrefs = true;
         [SerializeField] private int progressionStartIndex = -1;
-        [SerializeField] private bool buildOnStart = true;
 
         [Header("Dependencies")]
         [SerializeField] private CardGridSystem cardGridSystem;
@@ -70,23 +68,13 @@ namespace MatchingPair.Gameplay
 
         private void Start()
         {
-            if (buildOnStart)
-            {
-                BuildCurrentModeLevel();
-            }
         }
         #endregion
 
         #region PublicAPI
         public void BuildCurrentModeLevel()
         {
-            GameMode modeToBuild = startingMode;
-            if (loadLastModeFromPrefs)
-            {
-                modeToBuild = GamePrefs.GetLastSelectedMode();
-            }
-
-            BuildLevel(modeToBuild);
+            BuildLevel(startingMode);
         }
 
         public void BuildLevel(GameMode mode)
@@ -155,6 +143,13 @@ namespace MatchingPair.Gameplay
         {
             currentProgressionLevelIndex = index;
         }
+
+        public void UnloadCurrentLevel()
+        {
+            ClearSpawnedCards();
+            currentLevelContext = null;
+            remainingPairs = 0;
+        }
         #endregion
 
         #region BuildFlow
@@ -188,7 +183,8 @@ namespace MatchingPair.Gameplay
                 freeModeSettings.AllowedCardTypes,
                 width,
                 height,
-                distributionDifficulty);
+                distributionDifficulty,
+                false);
 
             float spacing = ResolveCellSpacing(freeModeSettings.Spacing);
             ApplyGridSettings(width, height, spacing);
@@ -233,7 +229,8 @@ namespace MatchingPair.Gameplay
                 level.CardTypesToUse,
                 level.Width,
                 level.Height,
-                level.DistributionDifficulty);
+                level.DistributionDifficulty,
+                true);
 
             float spacing = ResolveCellSpacing(freeModeSettings != null ? freeModeSettings.Spacing : 0f);
             ApplyGridSettings(level.Width, level.Height, spacing);
@@ -244,7 +241,7 @@ namespace MatchingPair.Gameplay
                 level.Width,
                 level.Height,
                 totalCards,
-                0f,
+                Mathf.Max(0f, level.LevelTimerSeconds),
                 0f,
                 level.DistributionDifficulty,
                 spawnedTypes);
@@ -294,16 +291,6 @@ namespace MatchingPair.Gameplay
             if ((level.Width * level.Height) % 2 != 0)
             {
                 throw new InvalidOperationException("Progression level '" + level.name + "' must have even total cell count.");
-            }
-
-            if ((level.Width % 2) != 0)
-            {
-                throw new InvalidOperationException("Progression level '" + level.name + "' must have even Width.");
-            }
-
-            if ((level.Height % 2) != 0)
-            {
-                throw new InvalidOperationException("Progression level '" + level.name + "' must have even Height.");
             }
 
             if (level.CardTypesToUse == null || level.CardTypesToUse.Count == 0)
@@ -369,7 +356,8 @@ namespace MatchingPair.Gameplay
             IList<CardType> allowedTypes,
             int width,
             int height,
-            CardDistributionDifficulty difficulty)
+            CardDistributionDifficulty difficulty,
+            bool useAllTypesBeforeRepeat)
         {
             int totalCards = targetBuffer.Length;
             int pairCount = totalCards / 2;
@@ -380,10 +368,17 @@ namespace MatchingPair.Gameplay
             }
 
             CardType[] pairTypes = new CardType[pairCount];
-            for (int pairIndex = 0; pairIndex < pairCount; pairIndex++)
+            if (useAllTypesBeforeRepeat)
             {
-                CardType type = allowedTypes[UnityEngine.Random.Range(0, allowedCount)];
-                pairTypes[pairIndex] = type;
+                FillPairTypesUsingAllAllowed(allowedTypes, pairTypes);
+            }
+            else
+            {
+                for (int pairIndex = 0; pairIndex < pairCount; pairIndex++)
+                {
+                    CardType type = allowedTypes[UnityEngine.Random.Range(0, allowedCount)];
+                    pairTypes[pairIndex] = type;
+                }
             }
 
             if (difficulty == CardDistributionDifficulty.Easy)
@@ -401,6 +396,61 @@ namespace MatchingPair.Gameplay
 
             PlacePairsRandom(targetBuffer, pairTypes);
             ReduceAdjacentDuplicates(targetBuffer, width, height, 1);
+        }
+
+        private static void FillPairTypesUsingAllAllowed(IList<CardType> allowedTypes, CardType[] pairTypes)
+        {
+            int allowedCount = allowedTypes.Count;
+            int pairCount = pairTypes.Length;
+            int[] shuffledTypeIndices = new int[allowedCount];
+            for (int index = 0; index < allowedCount; index++)
+            {
+                shuffledTypeIndices[index] = index;
+            }
+
+            ShuffleIndices(shuffledTypeIndices, allowedCount);
+
+            if (pairCount < allowedCount)
+            {
+                for (int pairIndex = 0; pairIndex < pairCount; pairIndex++)
+                {
+                    int typeIndex = shuffledTypeIndices[pairIndex];
+                    pairTypes[pairIndex] = allowedTypes[typeIndex];
+                }
+            }
+            else
+            {
+                for (int pairIndex = 0; pairIndex < pairCount; pairIndex++)
+                {
+                    int typeIndex = shuffledTypeIndices[pairIndex % allowedCount];
+                    pairTypes[pairIndex] = allowedTypes[typeIndex];
+                }
+            }
+
+            ShufflePairTypes(pairTypes);
+        }
+
+        private static void ShuffleIndices(int[] indices, int count)
+        {
+            for (int index = count - 1; index > 0; index--)
+            {
+                int randomIndex = UnityEngine.Random.Range(0, index + 1);
+                int temporaryIndex = indices[index];
+                indices[index] = indices[randomIndex];
+                indices[randomIndex] = temporaryIndex;
+            }
+        }
+
+        private static void ShufflePairTypes(CardType[] pairTypes)
+        {
+            int pairCount = pairTypes.Length;
+            for (int index = pairCount - 1; index > 0; index--)
+            {
+                int randomIndex = UnityEngine.Random.Range(0, index + 1);
+                CardType temporaryType = pairTypes[index];
+                pairTypes[index] = pairTypes[randomIndex];
+                pairTypes[randomIndex] = temporaryType;
+            }
         }
 
         private static void PlacePairsRandom(CardType[] targetBuffer, CardType[] pairTypes)
@@ -655,7 +705,7 @@ namespace MatchingPair.Gameplay
                     cardInstance.ApplyData(cardData);
                 }
 
-                cardInstance.HideCard();
+                cardInstance.SetCardFaceInstant(false);
                 cardInstance.transform.localScale = cardGridSystem.Settings.CellSize;
 
                 Collider selectionCollider = cardInstance.SelectionCollider;
